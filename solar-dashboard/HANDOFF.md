@@ -1,5 +1,7 @@
 # Solar Energy Dashboard -- Project Handoff
 
+Last updated: March 6, 2026 (America/New_York)
+
 ## Project Overview
 
 A custom solar energy monitoring dashboard for a residential SolarEdge 11.75 kW system. Built as a single-page web app deployed on Vercel, pulling live data from the SolarEdge Monitoring API.
@@ -9,6 +11,8 @@ A custom solar energy monitoring dashboard for a residential SolarEdge 11.75 kW 
 - **Address:** 6009 Jordan Woods Dr, Raleigh, NC
 - **SolarEdge Site ID:** `4105155`
 - **Utility provider:** Duke Energy (North Carolina residential, rate $0.1171/kWh)
+- **Latest production deploy:** March 6, 2026
+- **Latest app commit:** `b40ae65` ("Add estimated chart datasets and project handoff")
 
 ---
 
@@ -86,8 +90,8 @@ const charts = {
 
 ### mainChart datasets
 - `[0]` "Solar Production" -- yellow -- populated from SolarEdge data
-- `[1]` "Home Consumption" -- blue -- currently always empty
-- `[2]` "Grid Export" -- green -- currently always empty
+- `[1]` "Est. Home Consumption" -- blue -- estimated by selected time range
+- `[2]` "Est. Grid Export" -- green -- estimated as solar above baseline consumption
 
 ### setTimeRange(el) function
 Switches main chart between Day/Week/Month/Year. Fetches `/api/solaredge` and slices:
@@ -95,6 +99,12 @@ Switches main chart between Day/Week/Month/Year. Fetches `/api/solaredge` and sl
 - Week: last 7 entries of `energy_month` (Wh to kWh)
 - Month: all 31 entries of `energy_month` (Wh to kWh)
 - Year: `energy_year` values, filters nulls (Wh to kWh)
+
+Also populates estimated datasets for each time range:
+- Day: `AVG_POWER_KW = 3.8` baseline for home consumption, export = `max(0, solar - baseline)`
+- Week/Month: `AVG_DAILY_KWH = EST_CONSUME / 30` baseline per day
+- Year: `EST_CONSUME = 1150` baseline per month
+- On initial page load, the active time button is applied automatically so all three datasets render immediately.
 
 ### loadDukeData() function
 Falls back to estimating costs from SolarEdge production data:
@@ -127,31 +137,24 @@ const AVG_POWER_KW = 3.8;     // Estimated average home power draw (kW)
 6. Monthly Cost & Savings chart fixed -- now uses estimated costs from SolarEdge data
 7. KPI card bug fixed -- removed erroneous setText calls overwriting Grid Consumption
 8. Time selector buttons fixed -- setTimeRange() function added (Day/Week/Month/Year)
+9. Main chart estimate logic added -- `Est. Home Consumption` and `Est. Grid Export` now render for Day/Week/Month/Year.
+10. Production deploy completed on March 6, 2026 with chart estimate changes live at https://solar-dashboard-five.vercel.app.
+11. GitHub repo updated with same changes in commit `b40ae65`.
 
 ---
 
 ## Pending Work
 
-### 1. Add Home Consumption & Grid Export to main energy chart
-SolarEdge only meters solar production. Use estimates based on EST_CONSUME=1150 kWh/month:
-```javascript
-const avgDailyConsume = 1150 / 30; // ~38.3 kWh/day
-const gridExport = Math.max(0, solarKwh - avgDailyConsume);
-const gridImport = Math.max(0, avgDailyConsume - solarKwh);
-```
-Update setTimeRange() to populate datasets[1] (Home Consumption) and datasets[2] (Grid Export).
-Label them clearly as "Est. Home Consumption" etc.
-
-### 2. SolarEdge integration for Home Assistant
+### 1. SolarEdge integration for Home Assistant
 Raspberry Pi at 192.168.86.113:8123 runs Home Assistant. SolarEdge integration NOT yet configured.
 Steps: Settings > Devices & Services > Add Integration > SolarEdge > Site ID 4105155 + API key.
 
-### 3. Duke Energy fix (blocked)
+### 2. Duke Energy fix (blocked)
 pyduke-energy returns 403 Forbidden from https://api-v2.cma.duke-energy.app/login-services/auth-token
 Affects both Vercel function AND the Home Assistant duke_energy integration.
 Requires pyduke-energy library update, or switch to Green Button CSV export.
 
-### 4. Infrastructure migration (optional)
+### 3. Infrastructure migration (optional)
 Consider Railway.app or running directly on the Raspberry Pi with Flask:
 - Convert api/solaredge.py and api/fetch-duke-energy.py from Vercel handlers to Flask routes
 - Create app.py as main Flask server
@@ -175,7 +178,7 @@ Consider Railway.app or running directly on the Raspberry Pi with Flask:
 - All chart logic is client-side JavaScript in `public/index.html`. No build step.
 - The SolarEdge API key is server-side only (in `api/solaredge.py`). Frontend never sees it.
 - `charts.main` / `Chart.getChart('mainChart')` is the primary chart to work with.
-- `setTimeRange()` is the right place to add estimated consumption/export data.
+- `setTimeRange()` now includes estimated consumption/export population for all time ranges.
 - SolarEdge data is in **Wh** (not kWh) -- always divide by 1000 before displaying.
 - `power_today` is in **W** (not kW) -- divide by 1000; values are instantaneous power.
 - GitHub web editor uses CodeMirror 6. To programmatically edit:
